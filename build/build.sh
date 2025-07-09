@@ -8,7 +8,8 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 SETTINGS_FILE="$PROJECT_ROOT/module/settings.json"
 BUILD_DIR="$PROJECT_ROOT/build_output"
 MODULE_DIR="$BUILD_DIR/module"
-NDK_DIR="$PROJECT_ROOT/android-ndk"
+# Use ANDROID_NDK_ROOT from environment (GitHub Actions) or fallback to local path
+NDK_DIR="${ANDROID_NDK_ROOT:-$PROJECT_ROOT/android-ndk}"
 
 # Colors
 RED='\033[31m'
@@ -77,7 +78,7 @@ init_build() {
 build_cpp_arch() {
     local arch="$1"
     local build_type="$2"
-    local arch_dir="$MODULE_DIR/bin/$arch"
+    local module_id=$(read_json '.build.module_properties.module_name' 'AuroraModule')
     
     info "Building C++ components for $arch..."
     
@@ -97,60 +98,51 @@ build_cpp_arch() {
     # Build only core components, exclude tests and API examples
     make -j$(nproc) logger_daemon logger_client filewatcher
     
-    # Create architecture-specific directory
-    mkdir -p "$arch_dir"
+    # Create bin directory
+    mkdir -p "$MODULE_DIR/bin"
     
-    # Copy specific binaries (exclude test and API files)
-    [ -f "src/logger/logger_daemon" ] && cp "src/logger/logger_daemon" "$arch_dir/"
-    [ -f "src/logger/logger_client" ] && cp "src/logger/logger_client" "$arch_dir/"
-    [ -f "src/filewatcher/filewatcher" ] && cp "src/filewatcher/filewatcher" "$arch_dir/"
+    # Copy binaries with module_id and architecture suffix
+    [ -f "src/logger/logger_daemon" ] && cp "src/logger/logger_daemon" "$MODULE_DIR/bin/logger_daemon_${module_id}_${arch}"
+    [ -f "src/logger/logger_client" ] && cp "src/logger/logger_client" "$MODULE_DIR/bin/logger_client_${module_id}_${arch}"
+    [ -f "src/filewatcher/filewatcher" ] && cp "src/filewatcher/filewatcher" "$MODULE_DIR/bin/filewatcher_${module_id}_${arch}"
     
     # Strip debug symbols for smaller binaries
-    find "$arch_dir/" -type f -executable -exec strip {} \; 2>/dev/null || true
+    find "$MODULE_DIR/bin/" -name "*_${module_id}_${arch}" -type f -executable -exec strip {} \; 2>/dev/null || true
     
     # Clean up cmake build directory
     cd "$PROJECT_ROOT/Core"
     rm -rf "build_$arch"
     
-    success "C++ components built for $arch"
+    success "C++ components built for $arch with suffix"
 }
 
 # Build C++ components
 build_cpp() {
     local use_tools=$(read_json '.build.use_tools_form' '')
     local build_type=$(read_json '.build.build_type' 'Release')
-    local build_all_arch=$(read_bool '.build.build_all_architectures')
     
     if [ "$use_tools" = "build" ] && [ -d "$PROJECT_ROOT/Core" ]; then
-        [ ! -d "$NDK_DIR" ] && { error "Android NDK not found at $NDK_DIR"; exit 1; }
-        
-        if [ "$build_all_arch" = "true" ]; then
-            # Build for all configured architectures
-            local architectures=$(jq -r '.build.architectures[]?' "$SETTINGS_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
-            if [ -z "$architectures" ]; then
-                architectures="arm64-v8a x86_64"
-            fi
-            
-            for arch in $architectures; do
-                build_cpp_arch "$arch" "$build_type"
-            done
-            
-            # Create compatibility symlinks in root bin directory
-            mkdir -p "$MODULE_DIR/bin"
-            if [ -d "$MODULE_DIR/bin/arm64-v8a" ]; then
-                ln -sf arm64-v8a/* "$MODULE_DIR/bin/" 2>/dev/null || true
-            fi
-        else
-            # Build for single architecture (backward compatibility)
-            build_cpp_arch "arm64-v8a" "$build_type"
-            # Move files to root bin directory for backward compatibility
-            if [ -d "$MODULE_DIR/bin/arm64-v8a" ]; then
-                mv "$MODULE_DIR/bin/arm64-v8a"/* "$MODULE_DIR/bin/"
-                rmdir "$MODULE_DIR/bin/arm64-v8a"
-            fi
+        info "Using Android NDK at: $NDK_DIR"
+        if [ ! -d "$NDK_DIR" ]; then
+            error "Android NDK not found at $NDK_DIR"
+            error "Checked paths:"
+            error "  - Environment ANDROID_NDK_ROOT: ${ANDROID_NDK_ROOT:-'not set'}"
+            error "  - Local path: $PROJECT_ROOT/android-ndk"
+            error "Please install Android NDK or set ANDROID_NDK_ROOT environment variable"
+            exit 1
         fi
         
-        success "All C++ components built and cleaned"
+        # Build for all configured architectures
+        local architectures=$(jq -r '.build.architectures[]?' "$SETTINGS_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+        if [ -z "$architectures" ]; then
+            architectures="arm64-v8a x86_64"
+        fi
+        
+        for arch in $architectures; do
+            build_cpp_arch "$arch" "$build_type"
+        done
+        
+        success "All C++ components built with architecture suffixes"
     fi
 }
 
@@ -238,50 +230,76 @@ create_customize_sh() {
     local add_aurora=$(read_bool '.build.script.add_Aurora_function_for_script')
     local add_log=$(read_bool '.build.script.add_log_support_for_script')
     local build_type=$(read_json '.build.build_type' 'Release')
-    local build_all_arch=$(read_bool '.build.build_all_architectures')
+    local module_id=$(read_json '.build.module_properties.module_name' 'AuroraModule')
+    local package_mode=$(read_json '.build.package_mode' 'single_zip')
     
     cat > "$MODULE_DIR/customize.sh" << EOF
 #!/system/bin/sh
-# Aurora Module Installation Script
+# Aurora Module Installation Script - Simplified Architecture Handling
 
 BUILD_TYPE="$build_type"
+MODULE_ID="$module_id"
+PACKAGE_MODE="$package_mode"
 
-# Detect device architecture
-detect_arch() {
-    case \$(getprop ro.product.cpu.abi) in
-        arm64-v8a) echo "arm64-v8a" ;;
-        x86_64) echo "x86_64" ;;
-        *) echo "arm64-v8a" ;; # Default fallback
+# Convert Magisk ARCH to build architecture format
+convert_arch() {
+    case "\$ARCH" in
+        arm64) echo "arm64-v8a" ;;
+        arm) echo "armeabi-v7a" ;;
+        x64) echo "x86_64" ;;
+        x86) echo "x86" ;;
+        *) echo "\$ARCH" ;; # fallback
     esac
 }
 
-ARCH=\$(detect_arch)
+BUILD_ARCH=\$(convert_arch)
 
 ui_print "Installing Aurora Module..."
 ui_print "Build Type: \$BUILD_TYPE"
-ui_print "Target Architecture: \$ARCH"
+ui_print "Device Architecture: \$ARCH (\$BUILD_ARCH)"
+ui_print "Package Mode: \$PACKAGE_MODE"
 
 # Set basic permissions
 set_perm_recursive \$MODPATH 0 0 0755 0644
 
-# Set executable permissions for binaries
+# Handle binary installation with simplified architecture processing
 if [ -d "\$MODPATH/bin" ]; then
-    set_perm_recursive \$MODPATH/bin 0 0 0755 0755
-    ui_print "Aurora binaries installed to \$MODPATH/bin"
+    # Check if this is a multi-architecture package
+    local has_suffixed_binaries=false
+    for binary in \$MODPATH/bin/*_\${MODULE_ID}_*; do
+        if [ -f "\$binary" ]; then
+            has_suffixed_binaries=true
+            break
+        fi
+    done
     
-    # If multi-arch build, create symlinks for current architecture
-    if [ -d "\$MODPATH/bin/\$ARCH" ]; then
-        ui_print "Setting up architecture-specific binaries for \$ARCH"
-        # Remove existing symlinks
-        find \$MODPATH/bin -maxdepth 1 -type l -delete 2>/dev/null || true
-        # Create new symlinks for current architecture
-        for binary in \$MODPATH/bin/\$ARCH/*; do
+    if [ "\$has_suffixed_binaries" = "true" ]; then
+        ui_print "Processing multi-architecture binaries..."
+        
+        # Remove binaries that don't match current architecture
+        for binary in \$MODPATH/bin/*_\${MODULE_ID}_*; do
             if [ -f "\$binary" ]; then
-                ln -sf "\$ARCH/\$(basename \$binary)" "\$MODPATH/bin/\$(basename \$binary)"
+                local binary_name=\$(basename "\$binary")
+                if echo "\$binary_name" | grep -q "_\${MODULE_ID}_\${BUILD_ARCH}\$"; then
+                    # This binary matches current architecture - rename without suffix
+                    local clean_name=\$(echo "\$binary_name" | sed "s/_\${MODULE_ID}_\${BUILD_ARCH}\$//")
+                    mv "\$binary" "\$MODPATH/bin/\$clean_name"
+                    ui_print "Configured \$clean_name for \$BUILD_ARCH"
+                else
+                    # This binary is for different architecture - remove it
+                    rm -f "\$binary"
+                fi
             fi
         done
-        ui_print "Architecture-specific binaries linked successfully"
+        ui_print "Multi-architecture binaries processed successfully"
+    else
+        ui_print "Single-architecture package detected, no cleanup needed"
     fi
+    
+    # Set permissions for remaining binaries
+    set_perm_recursive \$MODPATH/bin 0 0 0755 0755
+else
+    ui_print "No binary directory found, skipping binary setup"
 fi
 
 ui_print "Aurora Module installed successfully!"
@@ -322,13 +340,72 @@ package_module() {
     
     local name=$(read_json '.build.module_properties.module_name' 'AuroraModule')
     local version=$(read_json '.build.module_properties.module_version' '1.0.0')
-    local output="${name}-${version}.zip"
+    local package_mode=$(read_json '.build.package_mode' 'single_zip')
     
-    cd "$MODULE_DIR"
-    zip -r "$BUILD_DIR/$output" . -x "*.DS_Store" "*Thumbs.db"
+    case "$package_mode" in
+        "single_zip")
+            # Single zip with all architectures (with suffixes)
+            local output="${name}-${version}-multi-arch.zip"
+            cd "$MODULE_DIR"
+            zip -r "$BUILD_DIR/$output" . -x "*.DS_Store" "*Thumbs.db"
+            success "Multi-architecture module packaged as: $output"
+            ;;
+        "separate_zip")
+            # Separate zip for each architecture (single-arch packages)
+            local architectures=$(jq -r '.build.architectures[]?' "$SETTINGS_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+            if [ -z "$architectures" ]; then
+                architectures="arm64-v8a x86_64"
+            fi
+            
+            for arch in $architectures; do
+                info "Packaging $arch architecture..."
+                local arch_output="${name}-${version}-${arch}.zip"
+                
+                # Create temporary directory for this architecture
+                local temp_dir="$BUILD_DIR/temp_$arch"
+                rm -rf "$temp_dir" && mkdir -p "$temp_dir"
+                
+                # Copy all module files except bin directory
+                if command -v rsync >/dev/null 2>&1; then
+                    rsync -av --exclude='bin/' "$MODULE_DIR/" "$temp_dir/"
+                else
+                    # Fallback to cp if rsync is not available
+                    cp -r "$MODULE_DIR"/* "$temp_dir/" 2>/dev/null || true
+                    rm -rf "$temp_dir/bin" 2>/dev/null || true
+                fi
+                
+                # Create bin directory and copy only this architecture's binaries without suffix
+                mkdir -p "$temp_dir/bin"
+                for binary in "$MODULE_DIR/bin"/*_${name}_${arch}; do
+                    if [ -f "$binary" ]; then
+                        local binary_name=$(basename "$binary")
+                        local clean_name=$(echo "$binary_name" | sed "s/_${name}_${arch}$//")
+                        cp "$binary" "$temp_dir/bin/$clean_name"
+                    fi
+                done
+                
+                # Update customize.sh to indicate single-arch package
+                sed -i 's/PACKAGE_MODE="[^"]*"/PACKAGE_MODE="single_arch"/' "$temp_dir/customize.sh" 2>/dev/null || true
+                
+                # Package this architecture
+                cd "$temp_dir"
+                zip -r "$BUILD_DIR/$arch_output" . -x "*.DS_Store" "*Thumbs.db"
+                
+                success "$arch module packaged as: $arch_output"
+                rm -rf "$temp_dir"
+            done
+            ;;
+        *)
+            # Default to single zip for any other mode
+            local output="${name}-${version}.zip"
+            cd "$MODULE_DIR"
+            zip -r "$BUILD_DIR/$output" . -x "*.DS_Store" "*Thumbs.db"
+            success "Module packaged as: $output"
+            ;;
+    esac
     
-    success "Module packaged as: $output"
-    info "Output location: $BUILD_DIR/$output"
+    info "Output location: $BUILD_DIR/"
+    ls -la "$BUILD_DIR/"*.zip 2>/dev/null || true
 }
 
 # Main build process
@@ -353,15 +430,19 @@ show_config() {
     echo "Module Build: $(read_bool '.build_module')"
     echo "WebUI Build: $(read_bool '.build.Aurora_webui_build')"
     echo "Build Type: $(read_json '.build.build_type' 'Release')"
-    echo "Multi-Architecture: $(read_bool '.build.build_all_architectures')"
+    echo "Package Mode: $(read_json '.build.package_mode' 'single_zip')"
     
     local architectures=$(jq -r '.build.architectures[]?' "$SETTINGS_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
     if [ -n "$architectures" ]; then
         echo "Target Architectures: $architectures"
     else
-        echo "Target Architectures: arm64-v8a (default)"
+        echo "Target Architectures: arm64-v8a x86_64 (default)"
     fi
     
+    echo "Package Modes:"
+    echo "  - single_zip: Multi-arch package with runtime cleanup"
+    echo "  - separate_zip: Single-arch packages (no cleanup needed)"
+    echo "Architecture Handling: Simplified (Magisk ARCH auto-conversion)"
     echo "Module Name: $(read_json '.build.module_properties.module_name' 'AuroraModule')"
     echo "Version: $(read_json '.build.module_properties.module_version' '1.0.0')"
     echo
