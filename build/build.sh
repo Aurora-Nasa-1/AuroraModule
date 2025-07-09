@@ -216,6 +216,10 @@ build_webui() {
         command -v npm >/dev/null || { error "npm not found"; return; }
         
         cd "$PROJECT_ROOT/webui"
+        
+        # Perform text replacement before building
+        perform_webui_text_replacement
+        
         npm ci && npm run build
         
         mkdir -p "$MODULE_DIR/webroot"
@@ -223,6 +227,56 @@ build_webui() {
         
         success "WebUI built and copied"
     fi
+}
+
+# Perform WebUI text replacement
+perform_webui_text_replacement() {
+    info "Performing WebUI text replacement..."
+    
+    # Read configuration from settings.json
+    local github_update_repo=$(read_json '.build.Github_update_repo' '')
+    local module_name=$(read_json '.build.module_properties.module_name' 'AuroraModule')
+    local current_time_versioncode=$(date +"%y%m%d")
+    
+    # Check if Github_update_repo is set
+    if [ "$github_update_repo" = "" ] || [ "$github_update_repo" = "your_name/your_repo" ]; then
+        warn "Github_update_repo not properly configured in settings.json"
+        warn "Please set Github_update_repo, example: Aurora-Nasa-1/ModuleWebUI"
+        warn "Skipping text replacement"
+        return
+    fi
+    
+    info "Replacing text with:"
+    info "  Github_update_repo: $github_update_repo"
+    info "  Module ID: $module_name"
+    info "  Module Name: $module_name"
+    info "  Version Code: $current_time_versioncode"
+    
+    # Replace version code in status.js
+    if [ -f "src/pages/status.js" ]; then
+        sed -i "s/20240503/${current_time_versioncode}/g" src/pages/status.js
+        info "Updated version code in status.js"
+    fi
+    
+    # Replace Github repo in status.js files
+    find src -name "status.js" -exec sed -i "s/Aurora-Nasa-1\/AMMF/${github_update_repo//\//\\/}/g" {} \;
+    
+    # Replace module ID in all JS files
+    find src -name "*.js" -exec sed -i "s/AMMF/${module_name}/g" {} \;
+    
+    # Replace module ID in index.html
+    if [ -f "src/index.html" ]; then
+        sed -i "s/AMMF/${module_name}/g" src/index.html
+        info "Updated module ID in index.html"
+    fi
+    
+    # Replace module name in translation files
+    if [ -d "src/translations" ]; then
+        find src/translations -name "*.json" -exec sed -i "s/AMMF/${module_name}/g" {} \;
+        info "Updated module name in translation files"
+    fi
+    
+    success "WebUI text replacement completed"
 }
 
 # Create customize.sh
