@@ -10,6 +10,9 @@
   "build": {
     "build_type": "Release",
     "Github_update_repo": "your_name/your_repo",
+    
+    "architectures": ["arm64-v8a", "x86_64"],
+    "build_all_architectures": true,
 
     "Aurora_webui_build": true,
     "webui": {

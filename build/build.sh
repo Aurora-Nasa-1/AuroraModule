@@ -73,34 +73,84 @@ init_build() {
     success "Build environment ready"
 }
 
+# Build C++ components for specific architecture
+build_cpp_arch() {
+    local arch="$1"
+    local build_type="$2"
+    local arch_dir="$MODULE_DIR/bin/$arch"
+    
+    info "Building C++ components for $arch..."
+    
+    cd "$PROJECT_ROOT/Core"
+    rm -rf "build_$arch" && mkdir "build_$arch" && cd "build_$arch"
+    
+    # Configure CMake with architecture-specific settings
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE="$NDK_DIR/build/cmake/android.toolchain.cmake" \
+        -DANDROID_ABI="$arch" \
+        -DANDROID_PLATFORM=android-21 \
+        -DCMAKE_BUILD_TYPE="$build_type" \
+        -DBUILD_TESTING=OFF \
+        -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -flto" \
+        -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -flto"
+    
+    # Build only core components, exclude tests and API examples
+    make -j$(nproc) logger_daemon logger_client filewatcher
+    
+    # Create architecture-specific directory
+    mkdir -p "$arch_dir"
+    
+    # Copy specific binaries (exclude test and API files)
+    [ -f "src/logger/logger_daemon" ] && cp "src/logger/logger_daemon" "$arch_dir/"
+    [ -f "src/logger/logger_client" ] && cp "src/logger/logger_client" "$arch_dir/"
+    [ -f "src/filewatcher/filewatcher" ] && cp "src/filewatcher/filewatcher" "$arch_dir/"
+    
+    # Strip debug symbols for smaller binaries
+    find "$arch_dir/" -type f -executable -exec strip {} \; 2>/dev/null || true
+    
+    # Clean up cmake build directory
+    cd "$PROJECT_ROOT/Core"
+    rm -rf "build_$arch"
+    
+    success "C++ components built for $arch"
+}
+
 # Build C++ components
 build_cpp() {
     local use_tools=$(read_json '.build.use_tools_form' '')
     local build_type=$(read_json '.build.build_type' 'Release')
+    local build_all_arch=$(read_bool '.build.build_all_architectures')
     
     if [ "$use_tools" = "build" ] && [ -d "$PROJECT_ROOT/Core" ]; then
-        info "Building C++ components..."
-        
         [ ! -d "$NDK_DIR" ] && { error "Android NDK not found at $NDK_DIR"; exit 1; }
         
-        cd "$PROJECT_ROOT/Core"
-        rm -rf build && mkdir build && cd build
+        if [ "$build_all_arch" = "true" ]; then
+            # Build for all configured architectures
+            local architectures=$(jq -r '.build.architectures[]?' "$SETTINGS_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+            if [ -z "$architectures" ]; then
+                architectures="arm64-v8a x86_64"
+            fi
+            
+            for arch in $architectures; do
+                build_cpp_arch "$arch" "$build_type"
+            done
+            
+            # Create compatibility symlinks in root bin directory
+            mkdir -p "$MODULE_DIR/bin"
+            if [ -d "$MODULE_DIR/bin/arm64-v8a" ]; then
+                ln -sf arm64-v8a/* "$MODULE_DIR/bin/" 2>/dev/null || true
+            fi
+        else
+            # Build for single architecture (backward compatibility)
+            build_cpp_arch "arm64-v8a" "$build_type"
+            # Move files to root bin directory for backward compatibility
+            if [ -d "$MODULE_DIR/bin/arm64-v8a" ]; then
+                mv "$MODULE_DIR/bin/arm64-v8a"/* "$MODULE_DIR/bin/"
+                rmdir "$MODULE_DIR/bin/arm64-v8a"
+            fi
+        fi
         
-        cmake .. \
-            -DCMAKE_TOOLCHAIN_FILE="$NDK_DIR/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-21 \
-            -DCMAKE_BUILD_TYPE="$build_type" \
-            -DBUILD_TESTING=OFF
-        
-        make -j$(nproc)
-        
-        # Copy binaries
-        mkdir -p "$MODULE_DIR/system/bin" "$MODULE_DIR/system/lib64"
-        find . -name "*.so" -exec cp {} "$MODULE_DIR/system/lib64/" \; 2>/dev/null || true
-        find . -type f -executable -exec cp {} "$MODULE_DIR/system/bin/" \; 2>/dev/null || true
-        
-        success "C++ components built"
+        success "All C++ components built and cleaned"
     fi
 }
 
@@ -188,6 +238,7 @@ create_customize_sh() {
     local add_aurora=$(read_bool '.build.script.add_Aurora_function_for_script')
     local add_log=$(read_bool '.build.script.add_log_support_for_script')
     local build_type=$(read_json '.build.build_type' 'Release')
+    local build_all_arch=$(read_bool '.build.build_all_architectures')
     
     cat > "$MODULE_DIR/customize.sh" << EOF
 #!/system/bin/sh
@@ -195,11 +246,43 @@ create_customize_sh() {
 
 BUILD_TYPE="$build_type"
 
+# Detect device architecture
+detect_arch() {
+    case \$(getprop ro.product.cpu.abi) in
+        arm64-v8a) echo "arm64-v8a" ;;
+        x86_64) echo "x86_64" ;;
+        *) echo "arm64-v8a" ;; # Default fallback
+    esac
+}
+
+ARCH=\$(detect_arch)
+
 ui_print "Installing Aurora Module..."
 ui_print "Build Type: \$BUILD_TYPE"
+ui_print "Target Architecture: \$ARCH"
 
+# Set basic permissions
 set_perm_recursive \$MODPATH 0 0 0755 0644
-set_perm_recursive \$MODPATH/system/bin 0 0 0755 0755
+
+# Set executable permissions for binaries
+if [ -d "\$MODPATH/bin" ]; then
+    set_perm_recursive \$MODPATH/bin 0 0 0755 0755
+    ui_print "Aurora binaries installed to \$MODPATH/bin"
+    
+    # If multi-arch build, create symlinks for current architecture
+    if [ -d "\$MODPATH/bin/\$ARCH" ]; then
+        ui_print "Setting up architecture-specific binaries for \$ARCH"
+        # Remove existing symlinks
+        find \$MODPATH/bin -maxdepth 1 -type l -delete 2>/dev/null || true
+        # Create new symlinks for current architecture
+        for binary in \$MODPATH/bin/\$ARCH/*; do
+            if [ -f "\$binary" ]; then
+                ln -sf "\$ARCH/\$(basename \$binary)" "\$MODPATH/bin/\$(basename \$binary)"
+            fi
+        done
+        ui_print "Architecture-specific binaries linked successfully"
+    fi
+fi
 
 ui_print "Aurora Module installed successfully!"
 EOF
@@ -270,6 +353,15 @@ show_config() {
     echo "Module Build: $(read_bool '.build_module')"
     echo "WebUI Build: $(read_bool '.build.Aurora_webui_build')"
     echo "Build Type: $(read_json '.build.build_type' 'Release')"
+    echo "Multi-Architecture: $(read_bool '.build.build_all_architectures')"
+    
+    local architectures=$(jq -r '.build.architectures[]?' "$SETTINGS_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+    if [ -n "$architectures" ]; then
+        echo "Target Architectures: $architectures"
+    else
+        echo "Target Architectures: arm64-v8a (default)"
+    fi
+    
     echo "Module Name: $(read_json '.build.module_properties.module_name' 'AuroraModule')"
     echo "Version: $(read_json '.build.module_properties.module_version' '1.0.0')"
     echo
