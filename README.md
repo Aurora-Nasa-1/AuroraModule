@@ -10,7 +10,7 @@
 
 模块在`module`目录下，作为模块的根目录
 
-可以从现有模块复制到`module`目录，或者作为git模块导入为子模块，但必须有`module/settings.json`.
+可以从Magisk现有模块复制到`module`目录，或者将模块仓库导入为文件夹（gitmodules），但必须有`module/settings.json`.
 
 编辑 `module/settings.json` [JSON设置详细说明](#配置选项详解)：
 ```json
