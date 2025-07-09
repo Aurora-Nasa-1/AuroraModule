@@ -215,9 +215,23 @@ build_webui() {
         [ ! -f "$PROJECT_ROOT/webui/package.json" ] && { warn "WebUI package.json not found, skipping"; return; }
         command -v npm >/dev/null || { error "npm not found"; return; }
         
-        cd "$PROJECT_ROOT/webui"
+        # Create temporary webui directory for building
+        local temp_webui_dir="$BUILD_DIR/temp_webui"
+        rm -rf "$temp_webui_dir"
+        mkdir -p "$temp_webui_dir"
         
-        # Perform text replacement before building
+        # Copy webui source to temporary directory
+        info "Copying WebUI source to temporary directory..."
+        if command -v rsync >/dev/null 2>&1; then
+            rsync -av --exclude='node_modules/' --exclude='dist/' "$PROJECT_ROOT/webui/" "$temp_webui_dir/"
+        else
+            cp -r "$PROJECT_ROOT/webui"/* "$temp_webui_dir/" 2>/dev/null || true
+            rm -rf "$temp_webui_dir/node_modules" "$temp_webui_dir/dist" 2>/dev/null || true
+        fi
+        
+        cd "$temp_webui_dir"
+        
+        # Perform text replacement in temporary directory
         perform_webui_text_replacement
         
         npm ci && npm run build
@@ -225,13 +239,16 @@ build_webui() {
         mkdir -p "$MODULE_DIR/webroot"
         cp -r dist/* "$MODULE_DIR/webroot/"
         
+        # Clean up temporary directory
+        rm -rf "$temp_webui_dir"
+        
         success "WebUI built and copied"
     fi
 }
 
-# Perform WebUI text replacement
+# Perform WebUI text replacement in temporary directory
 perform_webui_text_replacement() {
-    info "Performing WebUI text replacement..."
+    info "Performing WebUI text replacement in temporary directory..."
     
     # Read configuration from settings.json
     local github_update_repo=$(read_json '.build.Github_update_repo' '')
@@ -251,6 +268,7 @@ perform_webui_text_replacement() {
     info "  Module ID: $module_name"
     info "  Module Name: $module_name"
     info "  Version Code: $current_time_versioncode"
+    info "  Working directory: $(pwd)"
     
     # Replace version code in status.js
     if [ -f "src/pages/status.js" ]; then
@@ -259,24 +277,27 @@ perform_webui_text_replacement() {
     fi
     
     # Replace Github repo in status.js files
-    find src -name "status.js" -exec sed -i "s/Aurora-Nasa-1\/AMMF/${github_update_repo//\//\\/}/g" {} \;
+    find src -name "status.js" -exec sed -i "s/Aurora-Nasa-1\/AMMF/${github_update_repo//\//\\/}/g" {} \; 2>/dev/null || true
     
     # Replace module ID in all JS files
-    find src -name "*.js" -exec sed -i "s/AMMF/${module_name}/g" {} \;
+    find src -name "*.js" -exec sed -i "s/AMMF/${module_name}/g" {} \; 2>/dev/null || true
     
     # Replace module ID in index.html
     if [ -f "src/index.html" ]; then
         sed -i "s/AMMF/${module_name}/g" src/index.html
         info "Updated module ID in index.html"
+    elif [ -f "index.html" ]; then
+        sed -i "s/AMMF/${module_name}/g" index.html
+        info "Updated module ID in index.html"
     fi
     
     # Replace module name in translation files
     if [ -d "src/translations" ]; then
-        find src/translations -name "*.json" -exec sed -i "s/AMMF/${module_name}/g" {} \;
+        find src/translations -name "*.json" -exec sed -i "s/AMMF/${module_name}/g" {} \; 2>/dev/null || true
         info "Updated module name in translation files"
     fi
     
-    success "WebUI text replacement completed"
+    success "WebUI text replacement completed (source files unchanged)"
 }
 
 # Create customize.sh
