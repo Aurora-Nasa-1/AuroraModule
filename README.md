@@ -31,7 +31,7 @@
 ```
 
 ### 2. 一键构建
-
+**建议使用GitHub Action进行自动构建与版本控制（提交tag触发，tag格式为v*，会自动同步到模块版本与版本代码）**
 ```bash
 # 查看当前配置
 ./build/build.sh -c
@@ -81,6 +81,7 @@
 | `rewrite_module_properties` | boolean | 是否重写模块属性（内容相当于module.prop，目前默认启用，关闭无效） |
 | `custom_build_script` | boolean | 是否自定义构建脚本 |
 | `use_tools_form` | string | 工具来源：`build`/`release`（todo：自动从release获取），目前只能build |
+| `sync_with_git_tag` | boolean | 是否从Git标签同步版本（versioncode设置将无效，但支持完整的版本控制和更新机制，推荐打开，提交tag触发，tag格式为v*，会自动同步到模块版本与版本代码） |
 
 ## 📦 构建输出
 
