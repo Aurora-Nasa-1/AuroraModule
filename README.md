@@ -6,8 +6,13 @@
 
 ### 1. 配置模块
 
-[详情设置](#配置选项详解)
-编辑 `module/settings.json`：
+克隆此仓库或下载此仓库
+
+模块在`module`目录下，作为模块的根目录
+
+可以从现有模块复制到`module`目录，或者作为git模块导入为子模块，但必须有`module/settings.json`.
+
+编辑 `module/settings.json` [JSON设置详细说明](#配置选项详解)：
 ```json
 {
   "build_module": true,
@@ -88,6 +93,8 @@ build_output/
 │   ├── bin/                         # 多架构二进制文件
 │   │   ├── logger_daemon_ModuleName_arm64-v8a
 │   │   ├── logger_daemon_ModuleName_x86_64
+│   │   ├── logger_client_ModuleName_arm64-v8a
+│   │   ├── logger_client_ModuleName_x86_64
 │   │   └── filewatcher_ModuleName_*
 │   ├── webroot/                     # WebUI文件（可选）
 │   ├── module.prop                  # 模块属性
@@ -110,7 +117,7 @@ build_output/
 
 ```bash
 # 安装必需依赖
-sudo apt-get install jq cmake make zip  # Ubuntu/Debian
+sudo apt-get install jq cmake zip  # Ubuntu/Debian
 brew install jq cmake                   # macOS
 ```
 
