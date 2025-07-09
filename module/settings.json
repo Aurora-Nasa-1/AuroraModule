@@ -37,7 +37,6 @@
     "version_sync": {
       "sync_with_git_tag": false,
       "tag_prefix": "v",
-      "fallback_version": "1.0.0"
     },
 
     "custom_build_script": false,
