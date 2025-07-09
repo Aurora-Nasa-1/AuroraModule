@@ -458,7 +458,7 @@ package_module() {
     cp -r "$PROJECT_ROOT/module/"* "$MODULE_DIR/"
     rm "$MODULE_DIR/settings.json"
     local name=$(read_json '.build.module_properties.module_name' 'AuroraModule')
-    local version=$(read_json '.build.module_properties.module_version' '1.0.0')
+    local version=$(get_module_version)
     local package_mode=$(read_json '.build.package_mode' 'single_zip')
     
     case "$package_mode" in
