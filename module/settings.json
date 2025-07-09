@@ -27,11 +27,11 @@
 
     "rewrite_module_properties": true,
     "module_properties": {
-      "module_name": "AuroraModule",
+      "module_name": "YourModuleID",
       "module_version": "1.0.1",
-      "module_author": "Aurora",
-      "module_description": "Aurora Module",
-      "updateJson": "httpURL"
+      "module_author": "AutherName",
+      "module_description": "Module",
+      "updateJson": "https://raw.githubusercontent.com/your_name/your_repo/main/update.json"
     },
 
     "version_sync": {
