@@ -455,7 +455,7 @@ run_custom_script() {
 # Package module
 package_module() {
     info "Packaging Magisk module..."
-    cp "$PROJECT_ROOT/module/"* "$MODULE_DIR/"
+    cp -r "$PROJECT_ROOT/module/"* "$MODULE_DIR/"
     rm "$MODULE_DIR/settings.json"
     local name=$(read_json '.build.module_properties.module_name' 'AuroraModule')
     local version=$(read_json '.build.module_properties.module_version' '1.0.0')
