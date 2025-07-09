@@ -1,5 +1,5 @@
 #!/bin/bash
-# Aurora Module Build Script - Simplified Version
+# Aurora Module Build Script
 set -euo pipefail
 
 # Configuration
@@ -186,7 +186,7 @@ create_module_prop() {
     
     local name=$(read_json '.build.module_properties.module_name' 'AuroraModule')
     local version=$(read_json '.build.module_properties.module_version' '1.0.0')
-    local versioncode=$(read_json '.build.module_properties.module_versioncode' '1')
+    local versioncode=$(date +"%Y%m%d")
     local author=$(read_json '.build.module_properties.module_author' 'Aurora')
     local description=$(read_json '.build.module_properties.module_description' 'Aurora Module')
     local update_json=$(read_json '.build.module_properties.updateJson' '')

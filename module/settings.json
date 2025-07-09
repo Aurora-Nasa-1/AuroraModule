@@ -29,7 +29,6 @@
     "module_properties": {
       "module_name": "AuroraModule",
       "module_version": "1.0.1",
-      "module_versioncode": 1,
       "module_author": "Aurora",
       "module_description": "Aurora Module",
       "updateJson": "httpURL"
