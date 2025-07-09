@@ -37,8 +37,7 @@
 
     "custom_build_script": false,
     "build_script": {
-      "script_path": "custom_build_script.sh",
-      "CPP_USE_API": true
+      "script_path": "custom_build_script.sh"
     },
     "use_tools_form": "build"
   }
