@@ -36,7 +36,7 @@
 
     "version_sync": {
       "sync_with_git_tag": false,
-      "tag_prefix": "v",
+      "tag_prefix": "v"
     },
 
     "custom_build_script": false,
