@@ -47,7 +47,45 @@ jobs:
         chmod +x build/build.sh
         cd build
         ./build.sh --auto
-    
+
+    - name: Create update.json
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        # Extract variables
+        LATEST_TAG=${GITHUB_REF#refs/tags/}
+        CURRENT_TIME=$(date +"%Y%m%d")
+        Github_update_repo="${{ github.repository }}"
+        action_name="aurora-module"
+        
+        # Get version with Git tag sync support
+        SYNC_WITH_TAG=$(jq -r '.build.version_sync.sync_with_git_tag // false' module/settings.json)
+        TAG_PREFIX=$(jq -r '.build.version_sync.tag_prefix // "v"' module/settings.json)
+        FALLBACK_VERSION=$(jq -r '.build.version_sync.fallback_version // "1.0.0"' module/settings.json)
+        CONFIG_VERSION=$(jq -r '.build.module_properties.module_version // "1.0.0"' module/settings.json)
+        
+        if [ "$SYNC_WITH_TAG" = "true" ]; then
+          # Use version from Git tag (remove prefix)
+          VERSION=$(echo "$LATEST_TAG" | sed "s/^${TAG_PREFIX}//")
+          echo "Using version from Git tag: $LATEST_TAG -> $VERSION"
+        else
+          # Use version from configuration
+          VERSION="$CONFIG_VERSION"
+          echo "Using version from configuration: $VERSION"
+        fi
+        
+        # Create update.json
+        cat > build_output/update.json << EOF
+        {
+          "version": "${VERSION}",
+          "versionCode": "${CURRENT_TIME}",
+          "zipUrl": "https://github.com/${Github_update_repo}/releases/download/${LATEST_TAG}/${action_name}_${LATEST_TAG}.zip",
+          "changelog": "https://github.com/${Github_update_repo}/releases/tag/${LATEST_TAG}"
+        }
+        EOF
+        
+        echo "Created update.json with version: ${VERSION}, versionCode: ${CURRENT_TIME}"
+        cat build_output/update.json
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -59,7 +97,9 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
-        files: build_output/*.zip
+        files: |
+          build_output/*.zip
+          build_output/update.json
         draft: false
         prerelease: false
         generate_release_notes: true
