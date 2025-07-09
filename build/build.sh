@@ -39,7 +39,7 @@ trap cleanup EXIT
 # Check dependencies
 check_deps() {
     local missing=()
-    for cmd in jq cmake make zip; do
+    for cmd in jq cmake ninja zip; do
         command -v "$cmd" >/dev/null || missing+=("$cmd")
     done
     
@@ -85,18 +85,20 @@ build_cpp_arch() {
     cd "$PROJECT_ROOT/Core"
     rm -rf "build_$arch" && mkdir "build_$arch" && cd "build_$arch"
     
-    # Configure CMake with architecture-specific settings
-    cmake .. \
+    # Configure CMake with architecture-specific settings and static linking
+    cmake .. -G Ninja \
         -DCMAKE_TOOLCHAIN_FILE="$NDK_DIR/build/cmake/android.toolchain.cmake" \
         -DANDROID_ABI="$arch" \
         -DANDROID_PLATFORM=android-21 \
         -DCMAKE_BUILD_TYPE="$build_type" \
         -DBUILD_TESTING=OFF \
-        -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -flto" \
-        -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -flto"
+        -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -flto -static-libgcc -static-libstdc++" \
+        -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -flto -static-libgcc" \
+        -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
+        -DANDROID_STL=c++_static
     
-    # Build only core components, exclude tests and API examples
-    make -j$(nproc) logger_daemon logger_client filewatcher
+    # Build using cmake instead of make for better cross-platform compatibility
+    cmake --build . --parallel --config "$build_type" --target logger_daemon logger_client filewatcher
     
     # Create bin directory
     mkdir -p "$MODULE_DIR/bin"
@@ -232,7 +234,10 @@ create_customize_sh() {
     local build_type=$(read_json '.build.build_type' 'Release')
     local module_id=$(read_json '.build.module_properties.module_name' 'AuroraModule')
     local package_mode=$(read_json '.build.package_mode' 'single_zip')
-    
+    local default_SCRIPT=$(read_bool '.module.install_script_default' 'false')
+    if [ "$default_SCRIPT" = "true" ] && [ -f "$PROJECT_ROOT/module/customize.sh" ]; then
+    cp "$PROJECT_ROOT/module/customize.sh" "$MODULE_DIR/DEFAULT_INSTALL.sh"
+    fi
     cat > "$MODULE_DIR/customize.sh" << EOF
 #!/system/bin/sh
 # Aurora Module Installation Script - Simplified Architecture Handling
@@ -315,7 +320,9 @@ EOF
         sed -i '3i\. $MODPATH/AuroraCore.sh' "$MODULE_DIR/customize.sh"
         [ -f "$PROJECT_ROOT/build/AuroraCore.sh" ] && cp "$PROJECT_ROOT/build/AuroraCore.sh" "$MODULE_DIR/"
     fi
-    
+    if [ "$default_SCRIPT" = "true" ] && [ -f "$MODULE_DIR/DEFAULT_INSTALL.sh" ]; then
+        echo "source $MODULE_DIR/DEFAULT_INSTALL.sh" >> "$MODULE_DIR/customize.sh"
+    fi
     chmod +x "$MODULE_DIR/customize.sh"
     success "customize.sh created"
 }
