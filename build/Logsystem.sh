@@ -58,13 +58,30 @@ start_daemon() {
     return 0
 }
 
+# 日志级别映射函数
+map_log_level() {
+    case "$1" in
+        "trace"|"t") echo "d" ;;  # 使用debug字符代替trace
+        "debug"|"d") echo "d" ;;
+        "info"|"i") echo "i" ;;
+        "warning"|"warn"|"w") echo "w" ;;
+        "error"|"e") echo "e" ;;
+        "fatal"|"critical"|"c") echo "c" ;;
+        *) echo "i" ;;  # 默认为info
+    esac
+}
+
 # Shell缓冲管理
 add_to_shell_buffer() {
     local level="$1"
     local message="$2"
+    local level_char
+    
+    # 转换日志级别为字符
+    level_char=$(map_log_level "$level")
     
     # 添加到缓冲区
-    echo "$level $message" >> "$SHELL_BUFFER_FILE"
+    echo "$level_char $message" >> "$SHELL_BUFFER_FILE"
     SHELL_BUFFER_COUNT=$((SHELL_BUFFER_COUNT + 1))
     
     # 检查是否需要刷新
@@ -123,13 +140,16 @@ log() {
     
     check_logger || return 1
     
+    local level_char
+    level_char=$(map_log_level "$1")
+    
     # 对于critical/fatal级别的日志，立即发送
     case "$1" in
-        "fatal"|"error")
+        "fatal"|"critical"|"error")
             # 先刷新缓冲区
             flush_shell_buffer
             # 立即发送critical日志
-            "$LOGGER_CLIENT_BIN" -p "$DAEMON_PID" -l "$1" "$2" 2>/dev/null
+            "$LOGGER_CLIENT_BIN" -p "$DAEMON_PID" -l "$level_char" "$2" 2>/dev/null
             ;;
         *)
             # 其他级别使用缓冲
@@ -144,7 +164,10 @@ log_immediate() {
     
     check_logger || return 1
     
-    "$LOGGER_CLIENT_BIN" -p "$DAEMON_PID" -l "$1" "$2" 2>/dev/null
+    local level_char
+    level_char=$(map_log_level "$1")
+    
+    "$LOGGER_CLIENT_BIN" -p "$DAEMON_PID" -l "$level_char" "$2" 2>/dev/null
 }
 
 # 便捷的日志级别函数
@@ -286,41 +309,4 @@ get_logger_status() {
 cleanup_on_exit() {
     flush_shell_buffer
 }
-
-# 设置退出时的清理
-trap cleanup_on_exit EXIT
-
-# 使用说明和示例
-# 
-# 基本使用:
-#   source Logsystem.sh
-#   init_logger
-#   log_info "这是一条信息日志"
-#   log_error "这是一条错误日志"
-# 
-# 立即发送（绕过缓冲）:
-#   log_info_immediate "重要信息，立即发送"
-# 
-# 批量日志:
-#   echo "info 批量日志1" > /tmp/batch.log
-#   echo "error 批量日志2" >> /tmp/batch.log
-#   batch_log /tmp/batch.log
-# 
-# 配置:
-#   set_log_file "custom"           # 设置日志文件名
-#   set_shell_buffer_size 100       # 设置shell缓冲区大小
-#   set_shell_buffer_timeout 10     # 设置缓冲超时时间
-# 
-# 管理:
-#   get_logger_status               # 查看系统状态
-#   flush_logs                      # 强制刷新所有缓冲区
-#   clean_logs                      # 清理所有日志文件
-#   stop_logger                     # 停止日志系统
-# 
-# 支持的日志级别: trace, debug, info, warning, error, fatal
-# 
-# 系统架构:
-# 1. logger_daemon: 后台守护进程，处理日志写入和文件管理
-# 2. logger_client: 客户端程序，发送日志到daemon
-# 3. Shell缓冲: 在shell层面缓冲日志，批量发送以提高性能
-# 4. 内存Socket: 使用/tmp/aurora_<PID>.sock进行进程间通信
+init_logger

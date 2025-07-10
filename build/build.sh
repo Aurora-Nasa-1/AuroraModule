@@ -417,14 +417,14 @@ else
 fi
 
 EOF
-    
+    echo 'ui_print "loading"' >> "$MODULE_DIR/customize.sh"
     # Add script imports (after binary processing)
     if [ "$add_log" = "true" ]; then
-        sed -i '/^ui_print "Aurora Module installed successfully!"/i\. $MODPATH/Logsystem.sh' "$MODULE_DIR/customize.sh"
+        sed -i '/^ui_print "loading"/i\. $MODPATH/Logsystem.sh' "$MODULE_DIR/customize.sh"
         [ -f "$PROJECT_ROOT/build/Logsystem.sh" ] && cp "$PROJECT_ROOT/build/Logsystem.sh" "$MODULE_DIR/"
     fi
     if [ "$add_aurora" = "true" ]; then
-        sed -i '/^ui_print "Aurora Module installed successfully!"/i\. $MODPATH/AuroraCore.sh' "$MODULE_DIR/customize.sh"
+        sed -i '/^ui_print "loading"/i\. $MODPATH/AuroraCore.sh' "$MODULE_DIR/customize.sh"
         [ -f "$PROJECT_ROOT/build/AuroraCore.sh" ] && cp "$PROJECT_ROOT/build/AuroraCore.sh" "$MODULE_DIR/"
     fi
     if [ "$default_SCRIPT" = "true" ] && [ -f "$MODULE_DIR/DEFAULT_INSTALL.sh" ]; then
@@ -436,6 +436,7 @@ EOF
 echo "set_perm_recursive \$MODPATH 0 0 0755 0644" >> "$MODULE_DIR/customize.sh"
 
 echo 'ui_print "Aurora Module installed successfully!"' >> "$MODULE_DIR/customize.sh"
+echo 'cleanup_on_exit' >> "$MODULE_DIR/customize.sh"
     success "customize.sh created"
 }
 
