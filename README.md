@@ -4,6 +4,8 @@
 
 ## 开始
 
+**开发测试中，部分功能实现不全，或有问题存在**
+
 ### 1. 配置模块
 
 克隆此仓库或下载此仓库
@@ -64,8 +66,8 @@
 | 选项 | 类型 | 说明 |
 |------|------|------|
 | `Aurora_webui_build` | boolean | 是否构建WebUI组件 |
-| `script.add_Aurora_function_for_script` | boolean | 集成Aurora核心函数 |
-| `script.add_log_support_for_script` | boolean | 集成日志系统 |
+| `script.add_Aurora_function_for_script` | boolean | 集成Aurora核心函数（目前只支持安装脚本） |
+| `script.add_log_support_for_script` | boolean | 集成日志系统（目前只支持安装脚本） |
 
 ### WebUI组件
 
