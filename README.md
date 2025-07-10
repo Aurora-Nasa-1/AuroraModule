@@ -33,7 +33,7 @@
 ```
 
 ### 2. 一键构建
-**建议使用GitHub Action进行自动构建与版本控制（提交tag触发，tag格式为v*，会自动同步到模块版本与版本代码）**
+**建议使用GitHub Action进行自动构建与版本控制（提交tag触发，tag格式为v'*'，会自动同步到模块版本与版本代码）**
 ```bash
 # 查看当前配置
 ./build/build.sh -c
@@ -91,7 +91,7 @@
 
 ```
 build_output/
-├── module/                           # 模块源文件
+├── module/                          # 模块源文件
 │   ├── META-INF/                    # Magisk安装器
 │   ├── bin/                         # 多架构二进制文件
 │   │   ├── logger_daemon_ModuleName_arm64-v8a
@@ -121,7 +121,7 @@ build_output/
 ```bash
 # 安装必需依赖
 sudo apt-get install jq cmake zip  # Ubuntu/Debian
-brew install jq cmake                   # macOS
+brew install jq cmake              # macOS
 ```
 
 ### 常见错误
