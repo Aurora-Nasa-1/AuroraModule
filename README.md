@@ -4,8 +4,6 @@
 
 ## 开始
 
-**开发测试中，部分功能实现不全，或有问题存在**
-
 ### 1. 配置模块
 
 克隆此仓库或下载此仓库
@@ -14,23 +12,7 @@
 
 可以从Magisk现有模块复制到`module`目录，或者将模块仓库导入为文件夹（gitmodules），但必须有`module/settings.json`.
 
-编辑 `module/settings.json` [JSON设置详细说明](#配置选项详解)：
-```json
-{
-  "build_module": true,
-  "build": {
-    "build_type": "Release",
-    "architectures": ["arm64-v8a", "x86_64"],
-    "package_mode": "single_zip",
-    "Aurora_webui_build": true,
-    "module_properties": {
-      "module_name": "YourModule",
-      "module_version": "1.0.0",
-      "module_author": "YourName"
-    }
-  }
-}
-```
+然后编辑 `module/settings.json` [JSON设置详细说明](#配置选项详解)：
 
 ### 2. 一键构建
 **建议使用GitHub Action进行自动构建与版本控制（提交tag触发，tag格式为v'*'，会自动同步到模块版本与版本代码）**
@@ -66,38 +48,57 @@
 | 选项 | 类型 | 说明 |
 |------|------|------|
 | `Aurora_webui_build` | boolean | 是否构建WebUI组件 |
-| `script.add_Aurora_function_for_script` | boolean | 集成Aurora核心函数（目前只支持安装脚本） |
-| `script.add_log_support_for_script` | boolean | 集成日志系统（目前只支持安装脚本） |
+| `script.add_Aurora_function_for_script` | boolean | 集成Aurora核心函数到安装脚本 |
+| `script.add_log_support_for_script` | boolean | 集成高级日志系统到安装脚本 |
 
 ### WebUI组件
 
 | 选项 | 类型 | 说明 |
 |------|------|------|
 | `Aurora_webui_build` | boolean | 是否构建WebUI组件 |
-| `webui_overlay_src_path` | string | WebUI源码路径(覆盖层，覆盖到原源码上，方便修改，制作, TODO) |
-| `webui_build_output_path` | string | WebUI构建输出路径 |
+| `webui.webui_overlay_src_path` | string | WebUI覆盖层源码路径，用于自定义修改 |
+| `webui.webui_build_output_path` | string | WebUI构建输出路径，默认为webroot |
 
-### 其他配置
+### 工具获取配置
+
 | 选项 | 类型 | 说明 |
 |------|------|------|
-| `rewrite_module_properties` | boolean | 是否重写模块属性（内容相当于module.prop，目前默认启用，关闭无效） |
-| `custom_build_script` | boolean | 是否自定义构建脚本 |
-| `use_tools_form` | string | 工具来源：`build`/`release`（todo：自动从release获取），目前只能build |
-| `sync_with_git_tag` | boolean | 是否从Git标签同步版本（versioncode设置将无效，但支持完整的版本控制和更新机制，推荐打开，提交tag触发，tag格式为v*，会自动同步到模块版本与版本代码） |
+| `use_tools_form` | string | 工具来源：`build`从源码构建/`release`从GitHub Release下载 |
+| `Github_update_repo` | string | GitHub仓库路径，用于release模式和更新检查 |
 
-## 📦 构建输出
+### 版本控制配置
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `rewrite_module_properties` | boolean | 是否从settings.json重写module.prop |
+| `version_sync.sync_with_git_tag` | boolean | 是否从Git标签同步版本号 |
+| `version_sync.tag_prefix` | string | Git标签前缀，默认为"v" |
+
+### 自定义构建
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `custom_build_script` | boolean | 是否启用自定义构建脚本 |
+| `build_script.script_path` | string | 自定义构建脚本路径 |
+
+### 高级配置
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `advanced.enable_debug_logging` | boolean | 启用C++组件的调试日志输出 |
+| `advanced.strip_binaries` | boolean | 是否剥离二进制文件的调试符号以减小体积 |
+| `advanced.compress_resources` | boolean | 是否使用最大压缩率打包模块 |
+| `advanced.validate_config` | boolean | 是否启用配置验证检查 |
+
+## 构建输出
 
 构建完成后生成的文件结构：
 
 ```
 build_output/
 ├── module/                          # 模块源文件
-│   ├── META-INF/                    # Magisk安装器
+│   ├── META-INF/                    # META-INF
 │   ├── bin/                         # 多架构二进制文件
-│   │   ├── logger_daemon_ModuleName_arm64-v8a
-│   │   ├── logger_daemon_ModuleName_x86_64
-│   │   ├── logger_client_ModuleName_arm64-v8a
-│   │   ├── logger_client_ModuleName_x86_64
 │   │   └── filewatcher_ModuleName_*
 │   ├── webroot/                     # WebUI文件（可选）
 │   ├── module.prop                  # 模块属性
@@ -114,16 +115,6 @@ build_output/
 - **安装时**：`customize.sh` 自动检测设备架构并清理无关文件
 - **运行时**：只保留当前架构的二进制文件，优化存储空间
 
-## 🔧 故障排除
-
-### 依赖问题
-
-```bash
-# 安装必需依赖
-sudo apt-get install jq cmake zip  # Ubuntu/Debian
-brew install jq cmake              # macOS
-```
-
 ### 常见错误
 
 | 问题 | 解决方案 |
@@ -133,14 +124,18 @@ brew install jq cmake              # macOS
 | 权限错误 | `chmod +x build/build.sh` |
 | 配置无效 | 检查 `settings.json` 语法 |
 
-## 🚀 高级用法
+## 高级用法
 
 ### CI/CD 自动化
 
 **GitHub Actions 示例：**
 ```yaml
 name: Build Module
-on: [push, pull_request]
+on: 
+  push:
+    tags: ['v*']
+  pull_request:
+    branches: [main]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -148,6 +143,10 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r25c
     - name: Build Module
       run: |
         chmod +x build/build.sh
@@ -159,18 +158,38 @@ jobs:
         path: build_output/*.zip
 ```
 
-### 自定义构建
+### 自定义构建脚本
 
 ```json
 {
   "build": {
     "custom_build_script": true,
     "build_script": {
-      "script_path": "custom_build.sh"
+      "script_path": "scripts/custom_build.sh"
     }
   }
 }
 ```
+
+### WebUI覆盖层开发
+
+项目包含完整的WebUI覆盖层示例，展示如何创建自定义页面和插件：
+
+```json
+{
+  "webui": {
+    "webui_default": true,
+    "webui_overlay_src_path": "webui_overlay_example"
+  }
+}
+```
+
+
+**开发文档**:
+- [WebUI覆盖层示例](webui_overlay_example/README.md) - 完整的开发示例和使用指南
+- [WebUI开发指南](webui/docs/develop.md) - 核心API和功能说明
+- [页面模块开发](webui/docs/page-module-development.md) - 页面开发详细教程
+- [插件开发指南](webui/docs/plugin-development.md) - 插件开发完整指南
 
 ## 贡献
 

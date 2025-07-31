@@ -1,0 +1,33 @@
+{
+  "pages": {
+    "home": {
+      "title": "nav.home",
+      "icon": "home",
+      "module": "home",
+      "showInNav": true,
+      "order": 1
+    },
+    "example-page": {
+      "title": "nav.ExamplePage",
+      "icon": "extension",
+      "module": "example-page",
+      "showInNav": true,
+      "order": 2
+    },
+    "logs": {
+      "title": "nav.logs",
+      "icon": "description",
+      "showInNav": true,
+      "order": 3,
+      "module": "logs"
+    },
+    "settings": {
+      "title": "nav.settings",
+      "icon": "settings",
+      "showInNav": true,
+      "order": 4,
+      "module": "settings"
+    }
+  },
+  "defaultPage": "home"
+}

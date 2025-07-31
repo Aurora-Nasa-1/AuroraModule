@@ -1,0 +1,69 @@
+{
+  "examplePage": {
+    "title": "示例页面",
+    "description": "这是一个展示Aurora Module WebUI功能的示例页面",
+    "counter": {
+      "title": "计数器演示",
+      "increment": "增加",
+      "decrement": "减少",
+      "reset": "重置",
+      "incremented": "计数器已增加到 {count}",
+      "decremented": "计数器已减少到 {count}",
+      "resetted": "计数器已重置"
+    },
+    "actions": {
+      "title": "功能演示",
+      "showToast": "显示提示",
+      "showDialog": "显示对话框",
+      "execCommand": "执行命令",
+      "refresh": "刷新页面",
+      "about": "关于页面",
+      "refreshed": "页面已刷新"
+    },
+    "list": {
+      "title": "动态列表",
+      "empty": "列表为空，点击下方按钮添加项目",
+      "addItem": "添加项目",
+      "remove": "删除",
+      "addTitle": "添加新项目",
+      "addMessage": "请输入项目内容：",
+      "addPlaceholder": "输入项目内容...",
+      "itemAdded": "项目已添加",
+      "itemRemoved": "项目已删除"
+    },
+    "toast": {
+      "success": "这是一个成功提示！",
+      "info": "这是一个信息提示！",
+      "warning": "这是一个警告提示！",
+      "error": "这是一个错误提示！"
+    },
+    "dialog": {
+      "confirmTitle": "确认操作",
+      "confirmMessage": "您确定要继续此操作吗？",
+      "inputTitle": "输入信息",
+      "inputMessage": "请输入一些文本：",
+      "inputPlaceholder": "在这里输入...",
+      "inputReceived": "收到输入：{input}"
+    },
+    "command": {
+      "executing": "正在执行命令...",
+      "success": "命令执行成功：{output}",
+      "failed": "命令执行失败",
+      "error": "命令执行出错"
+    },
+    "about": {
+      "title": "关于示例页面",
+      "description": "这个示例页面展示了Aurora Module WebUI的各种功能和API用法：",
+      "feature1": "计数器：展示状态管理和UI更新",
+      "feature2": "Toast消息：展示不同类型的提示消息",
+      "feature3": "对话框：展示确认和输入对话框",
+      "feature4": "命令执行：展示Shell命令执行功能"
+    }
+  },
+  "nav": {
+    "ExamplePage": "示例页面"
+  },
+  "common": {
+    "close": "关闭"
+  }
+}

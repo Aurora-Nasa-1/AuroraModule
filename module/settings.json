@@ -16,7 +16,7 @@
 
     "Aurora_webui_build": true,
     "webui": {
-      "webui_overlay_src_path": "webroot",
+      "webui_overlay_src_path": "",
       "webui_build_output_path": "webroot"
     },
 
@@ -29,8 +29,8 @@
     "module_properties": {
       "module_name": "YourModuleID",
       "module_version": "1.0.1",
-      "module_author": "AutherName",
-      "module_description": "Module",
+      "module_author": "AuthorName",
+      "module_description": "Aurora Module - Modern Magisk Module Build System",
       "updateJson": "https://raw.githubusercontent.com/your_name/your_repo/main/update.json"
     },
 
@@ -43,6 +43,14 @@
     "build_script": {
       "script_path": "custom_build_script.sh"
     },
-    "use_tools_form": "build"
+    
+    "use_tools_form": "build",
+    
+    "advanced": {
+      "enable_debug_logging": false,
+      "strip_binaries": true,
+      "compress_resources": true,
+      "validate_config": true
+    }
   }
 }

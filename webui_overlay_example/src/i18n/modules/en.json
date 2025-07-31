@@ -1,0 +1,69 @@
+{
+  "examplePage": {
+    "title": "Example Page",
+    "description": "This is an example page showcasing Aurora Module WebUI features",
+    "counter": {
+      "title": "Counter Demo",
+      "increment": "Increment",
+      "decrement": "Decrement",
+      "reset": "Reset",
+      "incremented": "Counter incremented to {count}",
+      "decremented": "Counter decremented to {count}",
+      "resetted": "Counter has been reset"
+    },
+    "actions": {
+      "title": "Feature Demo",
+      "showToast": "Show Toast",
+      "showDialog": "Show Dialog",
+      "execCommand": "Execute Command",
+      "refresh": "Refresh Page",
+      "about": "About Page",
+      "refreshed": "Page refreshed"
+    },
+    "list": {
+      "title": "Dynamic List",
+      "empty": "List is empty, click the button below to add items",
+      "addItem": "Add Item",
+      "remove": "Remove",
+      "addTitle": "Add New Item",
+      "addMessage": "Please enter item content:",
+      "addPlaceholder": "Enter item content...",
+      "itemAdded": "Item added",
+      "itemRemoved": "Item removed"
+    },
+    "toast": {
+      "success": "This is a success message!",
+      "info": "This is an info message!",
+      "warning": "This is a warning message!",
+      "error": "This is an error message!"
+    },
+    "dialog": {
+      "confirmTitle": "Confirm Action",
+      "confirmMessage": "Are you sure you want to continue with this action?",
+      "inputTitle": "Input Information",
+      "inputMessage": "Please enter some text:",
+      "inputPlaceholder": "Type here...",
+      "inputReceived": "Received input: {input}"
+    },
+    "command": {
+      "executing": "Executing command...",
+      "success": "Command executed successfully: {output}",
+      "failed": "Command execution failed",
+      "error": "Command execution error"
+    },
+    "about": {
+      "title": "About Example Page",
+      "description": "This example page demonstrates various Aurora Module WebUI features and API usage:",
+      "feature1": "Counter: Demonstrates state management and UI updates",
+      "feature2": "Toast Messages: Shows different types of notification messages",
+      "feature3": "Dialogs: Shows confirmation and input dialogs",
+      "feature4": "Command Execution: Demonstrates Shell command execution functionality"
+    }
+  },
+  "nav": {
+    "ExamplePage": "Example Page"
+  },
+  "common": {
+    "close": "Close"
+  }
+}
