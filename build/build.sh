@@ -151,17 +151,15 @@ build_cpp_arch() {
     
     # Build using cmake instead of make for better cross-platform compatibility
     if [ "$debug_logging" = "true" ]; then
-        cmake --build . --parallel --config "$build_type" --target logger_daemon logger_client filewatcher --verbose
+        cmake --build . --parallel --config "$build_type" --target filewatcher --verbose
     else
-        cmake --build . --parallel --config "$build_type" --target logger_daemon logger_client filewatcher
+        cmake --build . --parallel --config "$build_type" --target filewatcher
     fi
     
     # Create bin directory
     mkdir -p "$MODULE_DIR/bin"
     
     # Copy binaries with module_id and architecture suffix
-    [ -f "src/logger/logger_daemon" ] && cp "src/logger/logger_daemon" "$MODULE_DIR/bin/logger_daemon_${module_id}_${arch}"
-    [ -f "src/logger/logger_client" ] && cp "src/logger/logger_client" "$MODULE_DIR/bin/logger_client_${module_id}_${arch}"
     [ -f "src/filewatcher/filewatcher" ] && cp "src/filewatcher/filewatcher" "$MODULE_DIR/bin/filewatcher_${module_id}_${arch}"
     
     # Strip debug symbols for smaller binaries (if enabled)
@@ -216,22 +214,6 @@ download_tools_from_release() {
     # Download binaries for each architecture
     for arch in $architectures; do
         info "Downloading tools for architecture: $arch"
-        
-        # Download logger_daemon
-        local daemon_url=$(echo "$release_info" | jq -r ".assets[] | select(.name | contains(\"logger_daemon\") and contains(\"$arch\")) | .browser_download_url" | head -1)
-        if [ -n "$daemon_url" ] && [ "$daemon_url" != "null" ]; then
-            curl -L -o "$tools_dir/logger_daemon_${module_name}_${arch}" "$daemon_url"
-            chmod +x "$tools_dir/logger_daemon_${module_name}_${arch}"
-            info "Downloaded logger_daemon for $arch"
-        fi
-        
-        # Download logger_client
-        local client_url=$(echo "$release_info" | jq -r ".assets[] | select(.name | contains(\"logger_client\") and contains(\"$arch\")) | .browser_download_url" | head -1)
-        if [ -n "$client_url" ] && [ "$client_url" != "null" ]; then
-            curl -L -o "$tools_dir/logger_client_${module_name}_${arch}" "$client_url"
-            chmod +x "$tools_dir/logger_client_${module_name}_${arch}"
-            info "Downloaded logger_client for $arch"
-        fi
         
         # Download filewatcher
         local watcher_url=$(echo "$release_info" | jq -r ".assets[] | select(.name | contains(\"filewatcher\") and contains(\"$arch\")) | .browser_download_url" | head -1)
