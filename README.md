@@ -187,9 +187,9 @@ jobs:
 
 **开发文档**:
 - [WebUI覆盖层示例](webui_overlay_example/README.md) - 完整的开发示例和使用指南
-- [WebUI开发指南](webui/docs/develop.md) - 核心API和功能说明
-- [页面模块开发](webui/docs/page-module-development.md) - 页面开发详细教程
-- [插件开发指南](webui/docs/plugin-development.md) - 插件开发完整指南
+- [WebUI开发指南](github.com/APMMDEVS/ModuleWebUI/docs/develop.md) - 核心API和功能说明
+- [页面模块开发](github.com/APMMDEVS/ModuleWebUI/docs/page-module-development.md) - 页面开发详细教程
+- [插件开发指南](github.com/APMMDEVS/ModuleWebUI/docs/plugin-development.md) - 插件开发完整指南
 
 ## 贡献
 
