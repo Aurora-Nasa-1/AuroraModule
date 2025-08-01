@@ -140,4 +140,34 @@ bash build.sh -d
 
 ## 📄 许可证
 
+<<<<<<< HEAD
 本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+=======
+### WebUI覆盖层开发
+
+项目包含完整的WebUI覆盖层示例，展示如何创建自定义页面和插件：
+
+```json
+{
+  "webui": {
+    "webui_default": true,
+    "webui_overlay_src_path": "webui_overlay_example"
+  }
+}
+```
+
+
+**开发文档**:
+- [WebUI覆盖层示例](webui_overlay_example/README.md) - 完整的开发示例和使用指南
+- [WebUI开发指南](https://github.com/APMMDEVS/ModuleWebUI/tree/main/docs/develop.md) - 核心API和功能说明
+- [页面模块开发](https://github.com/APMMDEVS/ModuleWebUI/tree/main/docs/page-module-development.md) - 页面开发详细教程
+- [插件开发指南](https://github.com/APMMDEVS/ModuleWebUI/tree/main/docs/plugin-development.md) - 插件开发完整指南
+
+## 贡献
+
+欢迎提交Issue和Pull Request来改进这个构建系统。
+
+## 许可证
+
+本项目采用MIT许可证。
+>>>>>>> b8614eac675e8261a9ca1f3098e5b3f7138bd134
