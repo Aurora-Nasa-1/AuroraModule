@@ -1,119 +1,121 @@
 # Aurora Module Build System
 
-现代化的Magisk模块构建系统，支持多架构C++组件、WebUI和智能打包。
+现代化的Magisk模块构建系统，支持C++组件、WebUI界面和智能打包。
 
-## 开始
+## ✨ 核心特性
 
-### 1. 配置模块
+- **一键构建**：自动化构建流程，支持多架构
+- **WebUI支持**：内置WebUI构建和实时开发预览
+- **智能打包**：单包/分包模式，自动架构处理
+- **灵活配置**：丰富的构建选项和高级设置
+- **版本控制**：自动从Git标签同步版本号，支持自动更新管理器更新检查
 
-克隆此仓库或下载此仓库
+## 🚀 快速开始
 
-模块在`module`目录下，作为模块的根目录
+### 1. 准备模块
+将现有Magisk模块复制到 `module/` 目录（或新建模块），确保包含 `module/settings.json` 配置文件。
 
-可以从Magisk现有模块复制到`module`目录，或者将模块仓库导入为文件夹（gitmodules），但必须有`module/settings.json`.
-
-然后编辑 `module/settings.json` [JSON设置详细说明](#配置选项详解)：
-
-### 2. 一键构建
-**建议使用GitHub Action进行自动构建与版本控制（提交tag触发，tag格式为v'*'，会自动同步到模块版本与版本代码）**
-```bash
-# 查看当前配置
-./build/build.sh -c
-
-# 开始构建
-./build/build.sh
-
-# 自动构建（CI/CD）
-./build/build.sh -a
+### 2. 配置构建
+编辑 `module/settings.json`，设置模块信息：
+```json
+{
+  "build_module": true,
+  "build": {
+    "module_properties": {
+      "module_name": "YourModuleID",
+      "module_version": "1.0.0",
+      "module_author": "YourName",
+      "module_description": "模块描述"
+    }
+  }
+}
 ```
 
-## 配置选项详解
+### 3. 开始构建
+```bash
+cd build
+bash build.sh          # 交互式构建
+bash build.sh -a       # 自动构建
+bash build.sh -c       # 查看配置
+bash build.sh -d       # WebUI开发模式
+```
 
-### 核心配置
+## ⚙️ 配置说明
 
-| 选项 | 类型 | 说明 |
-|------|------|------|
-| `build_module` | boolean | 是否启用构建 |
-| `build_type` | string | 构建类型：Release/Debug |
-| `architectures` | array | 目标架构列表 |
-| `package_mode` | string | 打包模式 |
+参考配置文件：`module/settings.json`
+“.”用于分隔配置项在json中的层级关系
 
-| 打包模式 | 说明 | 适用场景 |
-|------|------|----------|
-| `single_zip` | 多架构单包，运行时自动选择 | 通用分发，减少包数量 |
-| `separate_zip` | 每个架构单独打包 | 精确控制，减少包大小 |
+### 构建控制
+- `build.build_type` - 构建类型：`Release`（发布版）或 `Debug`（调试版）
 
-### 组件配置
+### 模块属性
+- `build.rewrite_module_properties` - 是否从配置重写module.prop文件
+- `build.module_properties.module_name` - 模块ID和名称
+- `build.module_properties.module_version` - 模块版本号
+- `build.module_properties.module_author` - 模块作者
+- `build.module_properties.module_description` - 模块描述
+- `build.module_properties.updateJson` - 更新检查URL（请将your_name/your_repo替换为你的GitHub用户名和仓库名）
 
-| 选项 | 类型 | 说明 |
-|------|------|------|
-| `Aurora_webui_build` | boolean | 是否构建WebUI组件 |
-| `script.add_Aurora_function_for_script` | boolean | 集成Aurora核心函数到安装脚本 |
-| `script.add_log_support_for_script` | boolean | 集成高级日志系统到安装脚本 |
+### WebUI设置
+- `build.Aurora_webui_build` - 是否构建WebUI界面
+- `build.webui.webui_overlay_src_path` - WebUI覆盖层源码路径
+- `build.webui.webui_build_output_path` - WebUI构建输出目录
 
-### WebUI组件
+### 脚本增强
+- `build.script.add_Aurora_function_for_script` - 为安装脚本添加Aurora核心函数
+- `build.script.add_log_support_for_script` - 为安装脚本添加日志支持
 
-| 选项 | 类型 | 说明 |
-|------|------|------|
-| `Aurora_webui_build` | boolean | 是否构建WebUI组件 |
-| `webui.webui_overlay_src_path` | string | WebUI覆盖层源码路径，用于自定义修改 |
-| `webui.webui_build_output_path` | string | WebUI构建输出路径，默认为webroot |
-
-### 工具获取配置
-
-| 选项 | 类型 | 说明 |
-|------|------|------|
-| `use_tools_form` | string | 工具来源：`build`从源码构建/`release`从GitHub Release下载 |
-| `Github_update_repo` | string | GitHub仓库路径，用于release模式和更新检查 |
-
-### 版本控制配置
-
-| 选项 | 类型 | 说明 |
-|------|------|------|
-| `rewrite_module_properties` | boolean | 是否从settings.json重写module.prop |
-| `version_sync.sync_with_git_tag` | boolean | 是否从Git标签同步版本号 |
-| `version_sync.tag_prefix` | string | Git标签前缀，默认为"v" |
+### 版本同步
+- `build.version_sync.sync_with_git_tag` - 是否与Git标签同步版本（如果是，将使用Git标签作为版本号,并且启用updateJson以及更新检查（需要在GitHub上创建Release））
+- `build.version_sync.tag_prefix` - Git标签前缀，默认为"v"
 
 ### 自定义构建
+- `build.custom_build_script` - 是否启用自定义构建脚本
+- `build.build_script.script_path` - 自定义构建脚本路径
 
-| 选项 | 类型 | 说明 |
-|------|------|------|
-| `custom_build_script` | boolean | 是否启用自定义构建脚本 |
-| `build_script.script_path` | string | 自定义构建脚本路径 |
+### 高级选项
+- `build.advanced.compress_resources` - 使用最大压缩率打包
+- `build.advanced.validate_config` - 启用配置验证检查
 
-### 高级配置
+### CPP工具构建选项（filewatcher）
+- `build.advanced.skip_cpp_build` - 跳过C++编译，仅构建脚本模块
 
-| 选项 | 类型 | 说明 |
-|------|------|------|
-| `advanced.enable_debug_logging` | boolean | 启用C++组件的调试日志输出 |
-| `advanced.strip_binaries` | boolean | 是否剥离二进制文件的调试符号以减小体积 |
-| `advanced.compress_resources` | boolean | 是否使用最大压缩率打包模块 |
-| `advanced.validate_config` | boolean | 是否启用配置验证检查 |
+- `build.package_mode` - 打包模式：`single_zip`（单包多架构）或 `separate_zip`（分包单架构）仅在构建可执行文件时使用
+- `build.architectures` - 目标架构列表，如 `["arm64-v8a", "x86_64"]`（仅在构建可执行文件时使用）
+- `build.use_tools_form` - 工具获取方式：`build`（源码构建）或 `release`（下载发布版）
+- `build.Github_update_repo` - GitHub仓库路径，用于工具下载和更新检查
 
-## 构建输出
+- `build.advanced.strip_binaries` - 剥离二进制文件调试符号以减小体积
+- `build.advanced.enable_debug_logging` - 启用C++组件调试日志
 
-构建完成后生成的文件结构：
+## 📦 构建模式
 
+### 标准模式（默认）
+- 构建C++组件和WebUI
+- 支持多架构自动处理
+- 生成完整功能模块
+
+### 脚本模式
+```json
+{
+  "build": {
+    "advanced": {
+      "skip_cpp_build": true
+    }
+  }
+}
 ```
-build_output/
-├── module/                          # 模块源文件
-│   ├── META-INF/                    # META-INF
-│   ├── bin/                         # 多架构二进制文件
-│   │   └── filewatcher_ModuleName_*
-│   ├── webroot/                     # WebUI文件（可选）
-│   ├── module.prop                  # 模块属性
-│   └── customize.sh                 # 智能安装脚本
-└── 输出包：
-    ├── AuroraModule-1.0.1-multi-arch.zip  # 单包模式
-    ├── AuroraModule-1.0.1-arm64-v8a.zip   # 分包模式
-    └── AuroraModule-1.0.1-x86_64.zip      # 分包模式
+- 跳过C++编译，仅打包脚本
+- 构建速度快，适合纯脚本模块
+- 无需Android NDK环境
+
+### WebUI开发模式
+```bash
+bash build.sh -d
 ```
-
-### 架构处理机制
-
-- **构建时**：为每个架构生成带后缀的二进制文件
-- **安装时**：`customize.sh` 自动检测设备架构并清理无关文件
-- **运行时**：只保留当前架构的二进制文件，优化存储空间
+- 实时预览WebUI界面
+- 支持热重载和文件监控
+- 需要Node.js环境
 
 ### 常见错误
 
@@ -126,75 +128,16 @@ build_output/
 
 ## 高级用法
 
-### CI/CD 自动化
+### WebUI开发
 
-**GitHub Actions 示例：**
-```yaml
-name: Build Module
-on: 
-  push:
-    tags: ['v*']
-  pull_request:
-    branches: [main]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Setup Android NDK
-      uses: nttld/setup-ndk@v1
-      with:
-        ndk-version: r25c
-    - name: Build Module
-      run: |
-        chmod +x build/build.sh
-        ./build/build.sh -a
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: aurora-module
-        path: build_output/*.zip
-```
+支持自定义WebUI界面开发：
+- 页面模块和插件系统
+- 国际化支持
+- 实时开发预览
+- 详见 [WebUI开发文档](webui/docs/develop.md)
 
-### 自定义构建脚本
+---
 
-```json
-{
-  "build": {
-    "custom_build_script": true,
-    "build_script": {
-      "script_path": "scripts/custom_build.sh"
-    }
-  }
-}
-```
+## 📄 许可证
 
-### WebUI覆盖层开发
-
-项目包含完整的WebUI覆盖层示例，展示如何创建自定义页面和插件：
-
-```json
-{
-  "webui": {
-    "webui_default": true,
-    "webui_overlay_src_path": "webui_overlay_example"
-  }
-}
-```
-
-
-**开发文档**:
-- [WebUI覆盖层示例](webui_overlay_example/README.md) - 完整的开发示例和使用指南
-- [WebUI开发指南](webui/docs/develop.md) - 核心API和功能说明
-- [页面模块开发](webui/docs/page-module-development.md) - 页面开发详细教程
-- [插件开发指南](webui/docs/plugin-development.md) - 插件开发完整指南
-
-## 贡献
-
-欢迎提交Issue和Pull Request来改进这个构建系统。
-
-## 许可证
-
-本项目采用MIT许可证。
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件

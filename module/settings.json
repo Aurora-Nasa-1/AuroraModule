@@ -50,7 +50,8 @@
       "enable_debug_logging": false,
       "strip_binaries": true,
       "compress_resources": true,
-      "validate_config": true
+      "validate_config": true,
+      "skip_cpp_build": false
     }
   }
 }

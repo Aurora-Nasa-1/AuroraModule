@@ -240,14 +240,18 @@ build_cpp() {
         "build")
             if [ -d "$PROJECT_ROOT/Core" ]; then
                 info "Building C++ components from source..."
-                info "Using Android NDK at: $NDK_DIR"
-                if [ ! -d "$NDK_DIR" ]; then
-                    error "Android NDK not found at $NDK_DIR"
-                    error "Checked paths:"
-                    error "  - Environment ANDROID_NDK_ROOT: ${ANDROID_NDK_ROOT:-'not set'}"
-                    error "  - Local path: $PROJECT_ROOT/android-ndk"
-                    error "Please install Android NDK or set ANDROID_NDK_ROOT environment variable"
-                    exit 1
+                # Check NDK only if not in script-only mode
+                local skip_cpp=$(read_bool '.build.advanced.skip_cpp_build')
+                if [ "$skip_cpp" != "true" ]; then
+                    info "Using Android NDK at: $NDK_DIR"
+                    if [ ! -d "$NDK_DIR" ]; then
+                        error "Android NDK not found at $NDK_DIR"
+                        error "Checked paths:"
+                        error "  - Environment ANDROID_NDK_ROOT: ${ANDROID_NDK_ROOT:-'not set'}"
+                        error "  - Local path: $PROJECT_ROOT/android-ndk"
+                        error "Please install Android NDK or set ANDROID_NDK_ROOT environment variable"
+                        exit 1
+                    fi
                 fi
                 
                 # Build for all configured architectures
@@ -524,17 +528,8 @@ perform_webui_text_replacement() {
     info "  Version Code: $current_time_versioncode"
     info "  Working directory: $(pwd)"
     
-    # Replace version code in status.js
-    if [ -f "src/pages/status.js" ]; then
-        sed -i "s/20240503/${current_time_versioncode}/g" src/pages/status.js
-        info "Updated version code in status.js"
-    fi
-    
-    # Replace Github repo in status.js files
-    find src -name "status.js" -exec sed -i "s/Aurora-Nasa-1\/AMMF/${github_update_repo//\//\\/}/g" {} \; 2>/dev/null || true
-    
     # Replace module ID in all JS files
-    find src -name "*.js" -exec sed -i "s/AMMF/${module_name}/g" {} \; 2>/dev/null || true
+    find src -name "*.js" -exec sed -i "s/ModuleWebUI/${module_name}/g" {} \; 2>/dev/null || true
     
     # Replace module ID in index.html
     if [ -f "src/index.html" ]; then
@@ -564,6 +559,8 @@ create_customize_sh() {
     local module_id=$(read_json '.build.module_properties.module_name' 'AuroraModule')
     local package_mode=$(read_json '.build.package_mode' 'single_zip')
     local default_SCRIPT=$(read_bool '.module.install_script_default' 'false')
+    local skip_cpp=$(read_bool '.build.advanced.skip_cpp_build')
+    
     if [ "$default_SCRIPT" = "true" ] && [ -f "$PROJECT_ROOT/module/customize.sh" ]; then
     cp "$PROJECT_ROOT/module/customize.sh" "$MODULE_DIR/DEFAULT_INSTALL.sh"
     fi
@@ -574,6 +571,7 @@ create_customize_sh() {
 BUILD_TYPE="$build_type"
 MODULE_ID="$module_id"
 PACKAGE_MODE="$package_mode"
+SKIP_CPP="$skip_cpp"
 
 # Convert Magisk ARCH to build architecture format
 convert_arch() {
@@ -594,7 +592,7 @@ ui_print "Device Architecture: \$ARCH (\$BUILD_ARCH)"
 ui_print "Package Mode: \$PACKAGE_MODE"
 
 # Handle binary installation with simplified architecture processing (MUST be first)
-if [ -d "\$MODPATH/bin" ]; then
+if [ "\$SKIP_CPP" != "true" ] && [ -d "\$MODPATH/bin" ]; then
     # Check if this is a multi-architecture package
     local has_suffixed_binaries=false
     for binary in \$MODPATH/bin/*_\${MODULE_ID}_*; do
@@ -629,6 +627,8 @@ if [ -d "\$MODPATH/bin" ]; then
     
     # Set permissions for remaining binaries
     set_perm_recursive \$MODPATH/bin 0 0 0755 0755
+elif [ "\$SKIP_CPP" = "true" ]; then
+    ui_print "Script-only module, skipping binary processing"
 else
     ui_print "No binary directory found, skipping binary setup"
 fi
@@ -680,6 +680,13 @@ package_module() {
     local version=$(get_module_version)
     local package_mode=$(read_json '.build.package_mode' 'single_zip')
     local compress_resources=$(read_bool '.build.advanced.compress_resources')
+    local skip_cpp=$(read_bool '.build.advanced.skip_cpp_build')
+    
+    # Force single_zip mode for script-only builds
+    if [ "$skip_cpp" = "true" ]; then
+        package_mode="single_zip"
+        info "Script-only mode: using single package (no architecture handling needed)"
+    fi
     
     # Prepare compression options
     local zip_options="-r"
@@ -778,9 +785,17 @@ package_module() {
 # Main build process
 main_build() {
     info "Starting Aurora Module build process..."
-    
     init_build
-    build_cpp
+    
+    # Check if C++ build should be skipped
+    local skip_cpp=$(read_bool '.build.advanced.skip_cpp_build')
+    if [ "$skip_cpp" = "true" ]; then
+        info "Skipping C++ build (script-only mode enabled)"
+        info "Building script-only module package..."
+    else
+        build_cpp
+    fi
+    
     create_meta_inf
     create_module_prop
     build_webui
@@ -788,7 +803,204 @@ main_build() {
     package_module
     run_custom_script
     
-    success "Aurora Module build completed successfully!"
+    if [ "$skip_cpp" = "true" ]; then
+        success "Script-only Aurora Module build completed successfully!"
+    else
+        success "Aurora Module build completed successfully!"
+    fi
+}
+
+# Development WebUI preview with live overlay processing
+dev_webui_preview() {
+    info "Starting WebUI development preview mode..."
+    
+    # Check if WebUI is enabled
+    local aurora_webui_build=$(read_bool '.build.Aurora_webui_build')
+    if [ "$aurora_webui_build" != "true" ]; then
+        error "WebUI build is disabled in configuration"
+        error "Please set 'Aurora_webui_build' to true in settings.json"
+        exit 1
+    fi
+    
+    # Check dependencies
+    command -v npm >/dev/null || { error "npm not found, please install Node.js"; exit 1; }
+    
+    # Check for file watching capability (Windows/Linux compatible)
+    local file_watcher_available=false
+    if command -v inotifywait >/dev/null 2>&1; then
+        file_watcher_available=true
+        info "Using inotifywait for file watching"
+    elif command -v fswatch >/dev/null 2>&1; then
+        file_watcher_available=true
+        info "Using fswatch for file watching"
+    else
+        warn "No file watcher found (inotifywait/fswatch), file watching disabled"
+        warn "Install inotify-tools (Linux) or fswatch (macOS/Windows) for live overlay updates"
+    fi
+    
+    # Check WebUI directory
+    if [ ! -f "$PROJECT_ROOT/webui/package.json" ]; then
+        error "WebUI package.json not found at $PROJECT_ROOT/webui/"
+        exit 1
+    fi
+    
+    # Read WebUI configuration
+    local webui_overlay_src=$(read_json '.build.webui.webui_overlay_src_path' '')
+    local temp_webui_dir="$BUILD_DIR/dev_webui"
+    
+    info "Setting up development environment..."
+    
+    # Create development directory
+    rm -rf "$temp_webui_dir"
+    mkdir -p "$temp_webui_dir"
+    
+    # Copy webui source to development directory
+    info "Copying WebUI source to development directory..."
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -av --exclude='node_modules/' --exclude='dist/' "$PROJECT_ROOT/webui/" "$temp_webui_dir/"
+    else
+        cp -r "$PROJECT_ROOT/webui"/* "$temp_webui_dir/" 2>/dev/null || true
+        rm -rf "$temp_webui_dir/node_modules" "$temp_webui_dir/dist" 2>/dev/null || true
+    fi
+    
+    # Apply initial overlay if specified
+    if [ -n "$webui_overlay_src" ] && [ -d "$PROJECT_ROOT/$webui_overlay_src" ]; then
+        info "Applying initial WebUI overlay from: $webui_overlay_src"
+        apply_overlay_to_dev "$PROJECT_ROOT/$webui_overlay_src" "$temp_webui_dir"
+        success "Initial WebUI overlay applied"
+    fi
+    
+    cd "$temp_webui_dir"
+    
+    # Perform initial text replacement
+    perform_webui_text_replacement
+    
+    # Install dependencies if needed
+    if [ ! -d "node_modules" ]; then
+        info "Installing WebUI dependencies..."
+        npm ci || { error "Failed to install WebUI dependencies"; exit 1; }
+    fi
+    
+    # Start file watcher in background if available
+    if [ "$file_watcher_available" = "true" ] && [ -n "$webui_overlay_src" ] && [ -d "$PROJECT_ROOT/$webui_overlay_src" ]; then
+        info "Starting file watcher for overlay changes..."
+        start_overlay_watcher "$PROJECT_ROOT/$webui_overlay_src" "$temp_webui_dir" &
+        WATCHER_PID=$!
+        
+        # Setup cleanup trap
+        cleanup_dev() {
+            info "Cleaning up development environment..."
+            [ -n "$WATCHER_PID" ] && kill $WATCHER_PID 2>/dev/null || true
+            [ -n "$DEV_SERVER_PID" ] && kill $DEV_SERVER_PID 2>/dev/null || true
+            rm -rf "$temp_webui_dir"
+            exit 0
+        }
+        trap cleanup_dev INT TERM EXIT
+    fi
+    
+    # Set module ID for development
+    export MODID=$(read_json '.build.module_properties.module_name' 'AuroraModule')
+    
+    info "Starting development server..."
+    info "Module ID: $MODID"
+    info "Development directory: $temp_webui_dir"
+    if [ -n "$webui_overlay_src" ]; then
+        info "Overlay source: $PROJECT_ROOT/$webui_overlay_src"
+        info "File watcher: $([ "$file_watcher_available" = "true" ] && echo 'Active' || echo 'Disabled')"
+    fi
+    info "Press Ctrl+C to stop the development server"
+    echo
+    
+    # Start development server (non-blocking)
+    info "Starting Vite development server in background..."
+    npm run dev &
+    DEV_SERVER_PID=$!
+    
+    # Wait for server to start
+    sleep 3
+    
+    # Check if server started successfully
+    if kill -0 $DEV_SERVER_PID 2>/dev/null; then
+        success "Development server started successfully (PID: $DEV_SERVER_PID)"
+        info "Server should be available at: http://localhost:5173"
+        info "Press Ctrl+C to stop all services"
+        
+        # Keep script running and handle cleanup
+        wait_for_interrupt() {
+            while true; do
+                sleep 1
+                # Check if dev server is still running
+                if ! kill -0 $DEV_SERVER_PID 2>/dev/null; then
+                    warn "Development server stopped unexpectedly"
+                    break
+                fi
+            done
+        }
+        
+        wait_for_interrupt
+    else
+        error "Failed to start development server"
+        exit 1
+    fi
+}
+
+# Apply overlay to development directory
+apply_overlay_to_dev() {
+    local overlay_src="$1"
+    local target_dir="$2"
+    
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -av "$overlay_src/" "$target_dir/"
+    else
+        cp -r "$overlay_src"/* "$target_dir/" 2>/dev/null || true
+    fi
+}
+
+# Start overlay file watcher
+start_overlay_watcher() {
+    local overlay_src="$1"
+    local target_dir="$2"
+    
+    info "File watcher monitoring: $overlay_src"
+    
+    if command -v inotifywait >/dev/null 2>&1; then
+        # Use inotifywait (Linux)
+        inotifywait -m -r -e modify,create,delete,move "$overlay_src" --format '%w%f %e' |
+        while read file event; do
+            # Skip temporary files and hidden files
+            case "$(basename "$file")" in
+                .*|*~|*.tmp|*.swp) continue ;;
+            esac
+            
+            info "Overlay file changed: $file ($event)"
+            
+            # Apply overlay changes
+            apply_overlay_to_dev "$overlay_src" "$target_dir"
+            
+            # Perform text replacement after overlay update
+            cd "$target_dir"
+            perform_webui_text_replacement
+            
+            success "Overlay updated and text replacement applied"
+        done
+    elif command -v fswatch >/dev/null 2>&1; then
+        # Use fswatch (macOS/Windows)
+        fswatch -o -r "$overlay_src" |
+        while read num_changes; do
+            info "Overlay files changed ($num_changes changes detected)"
+            
+            # Apply overlay changes
+            apply_overlay_to_dev "$overlay_src" "$target_dir"
+            
+            # Perform text replacement after overlay update
+            cd "$target_dir"
+            perform_webui_text_replacement
+            
+            success "Overlay updated and text replacement applied"
+        done
+    else
+        warn "No file watcher available, monitoring disabled"
+    fi
 }
 
 # Show configuration
@@ -822,12 +1034,18 @@ main() {
             echo "Usage: $0 [OPTIONS]"
             echo "  -a, --auto    Auto mode (no confirmation)"
             echo "  -c, --config  Show config only"
+            echo "  -d, --dev     Development mode with live WebUI preview"
             echo "  -h, --help    Show help"
             exit 0
             ;;
         -c|--config)
             validate_config
             show_config
+            exit 0
+            ;;
+        -d|--dev)
+            validate_config
+            dev_webui_preview
             exit 0
             ;;
     esac
