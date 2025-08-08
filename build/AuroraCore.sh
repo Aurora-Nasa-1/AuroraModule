@@ -5,7 +5,6 @@
 # shellcheck disable=SC2155
 # shellcheck disable=SC2046
 # shellcheck disable=SC3045
-[ "$LOGGER_INITIALIZED" != "1" ] && . "$MODPATH/log_b.sh"
 set_log_file "install"
 TMP_FOLDER="$MODPATH/TEMP"
 mkdir -p "$TMP_FOLDER"

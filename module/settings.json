@@ -35,7 +35,7 @@
     },
 
     "version_sync": {
-      "sync_with_git_tag": false,
+      "sync_with_git_tag": true,
       "tag_prefix": "v"
     },
 

@@ -650,8 +650,6 @@ EOF
     fi
     chmod +x "$MODULE_DIR/customize.sh"
 
-echo "set_perm_recursive \$MODPATH 0 0 0755 0644" >> "$MODULE_DIR/customize.sh"
-
 echo 'ui_print "Aurora Module installed successfully!"' >> "$MODULE_DIR/customize.sh"
 echo 'cleanup_on_exit' >> "$MODULE_DIR/customize.sh"
     success "customize.sh created"

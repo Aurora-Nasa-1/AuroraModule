@@ -2,7 +2,7 @@
 
 现代化的Magisk模块构建系统，支持C++组件、WebUI界面和智能打包。
 
-## ✨ 核心特性
+## 核心特性
 
 - **一键构建**：自动化构建流程，支持多架构
 - **WebUI支持**：内置WebUI构建和实时开发预览
@@ -10,10 +10,11 @@
 - **灵活配置**：丰富的构建选项和高级设置
 - **版本控制**：自动从Git标签同步版本号，支持自动更新管理器更新检查
 
-## 🚀 快速开始
+## 快速开始
 
 ### 1. 准备模块
 将现有Magisk模块复制到 `module/` 目录（或新建模块），确保包含 `module/settings.json` 配置文件。
+*可以不包含META-INF文件夹，并且customize.sh文件默认自动处理*
 
 ### 2. 配置构建
 编辑 `module/settings.json`，设置模块信息：
@@ -40,7 +41,7 @@ bash build.sh -c       # 查看配置
 bash build.sh -d       # WebUI开发模式
 ```
 
-## ⚙️ 配置说明
+## 配置说明
 
 参考配置文件：`module/settings.json`
 “.”用于分隔配置项在json中的层级关系
@@ -88,7 +89,7 @@ bash build.sh -d       # WebUI开发模式
 - `build.advanced.strip_binaries` - 剥离二进制文件调试符号以减小体积
 - `build.advanced.enable_debug_logging` - 启用C++组件调试日志
 
-## 📦 构建模式
+## 构建模式
 
 ### 标准模式（默认）
 - 构建C++组件和WebUI
@@ -117,6 +118,21 @@ bash build.sh -d
 - 支持热重载和文件监控
 - 需要Node.js环境
 
+### WebUI覆盖层开发
+```json
+{
+  "build": {
+    "webui": {
+      "webui_overlay_src_path": "webui_overlay_example"
+    }
+  }
+}
+```
+- 自定义WebUI界面
+- 支持页面模块和插件
+- 详见 [WebUI开发文档](webui/docs/README.md)
+*注意，编译时会将这些文件复制到webui源码上，所以请在webui_overlay_src_path中只包含需要修改或新增的文件，并且做好pages.json的处理*
+
 ### 常见错误
 
 | 问题 | 解决方案 |
@@ -135,39 +151,3 @@ bash build.sh -d
 - 国际化支持
 - 实时开发预览
 - 详见 [WebUI开发文档](webui/docs/develop.md)
-
----
-
-## 📄 许可证
-
-<<<<<<< HEAD
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
-=======
-### WebUI覆盖层开发
-
-项目包含完整的WebUI覆盖层示例，展示如何创建自定义页面和插件：
-
-```json
-{
-  "webui": {
-    "webui_default": true,
-    "webui_overlay_src_path": "webui_overlay_example"
-  }
-}
-```
-
-
-**开发文档**:
-- [WebUI覆盖层示例](webui_overlay_example/README.md) - 完整的开发示例和使用指南
-- [WebUI开发指南](https://github.com/APMMDEVS/ModuleWebUI/tree/main/docs/develop.md) - 核心API和功能说明
-- [页面模块开发](https://github.com/APMMDEVS/ModuleWebUI/tree/main/docs/page-module-development.md) - 页面开发详细教程
-- [插件开发指南](https://github.com/APMMDEVS/ModuleWebUI/tree/main/docs/plugin-development.md) - 插件开发完整指南
-
-## 贡献
-
-欢迎提交Issue和Pull Request来改进这个构建系统。
-
-## 许可证
-
-本项目采用MIT许可证。
->>>>>>> b8614eac675e8261a9ca1f3098e5b3f7138bd134
